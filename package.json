@@ -1,0 +1,40 @@
+{
+  "name": "waterfall",
+  "author": "kjubybot",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app"
+  ],
+  "private": true,
+  "dependencies": {
+    "@rebble/clay": "^1.0.10"
+  },
+  "pebble": {
+    "displayName": "Waterfall",
+    "uuid": "cce2abb5-d216-40f5-ae1a-8c69f155d58b",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "basalt",
+      "emery"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "capabilities": [
+      "configurable"
+    ],
+    "messageKeys": [
+      "FOREGROUND_COLOR",
+      "BACKGROUND_COLOR"
+    ],
+    "resources": {
+      "media": [{
+        "file": "images/icon.png",
+        "menuIcon": true,
+        "name": "MENU_ICON",
+        "type": "bitmap"
+      }]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+.waf*
+build
+.lock-waf*
+
+screenshots
+node_modules
+compile_commands.json
+
+.DS_Store
+.AppleDouble

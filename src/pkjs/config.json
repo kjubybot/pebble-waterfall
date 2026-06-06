@@ -1,0 +1,29 @@
+[
+  {
+    "type": "heading",
+    "defaultValue": "Configuration"
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "color",
+        "messageKey": "FOREGROUND_COLOR",
+        "defaultValue": "0xFFFFFF",
+        "label": "Foreground Color",
+        "sunlight": false
+      },
+      {
+        "type": "color",
+        "messageKey": "BACKGROUND_COLOR",
+        "defaultValue": "0x000000",
+        "label": "Background Color",
+        "sunlight": false
+      }
+    ]
+  },
+  {
+    "type": "submit",
+    "defaultValue": "Save"
+  }
+]
