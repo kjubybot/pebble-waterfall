@@ -19,6 +19,12 @@
         "defaultValue": "0x000000",
         "label": "Background Color",
         "sunlight": false
+      },
+      {
+        "type": "toggle",
+        "messageKey": "TAP_ANIMATION",
+        "defaultValue": true,
+        "label": "Tap Animation"
       }
     ]
   },

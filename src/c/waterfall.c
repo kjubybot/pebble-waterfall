@@ -11,6 +11,7 @@
 typedef struct {
   GColor fg_color;
   GColor bg_color;
+  bool tap_animation;
 } Settings;
 
 // Each column has 2 animations:
@@ -62,6 +63,8 @@ static bool s_new_grid[GRID_COLS][GRID_ROWS];
 static AnimationImplementation s_animation_impl;
 static Column *s_columns;
 static bool s_first_animation;
+static bool s_animating;
+static bool s_animation_queued;
 
 // Lookup tables, populated in window_load. Sized for the largest supported
 // platform, emery (200x228, 100 columns).
@@ -72,9 +75,12 @@ static uint8_t s_gc_for_x[200];
 static uint8_t s_gr_for_y[228];
 static bool s_col_is_bound[100];
 
+static void start_animation(void);
+
 static void load_settings(void) {
   s_settings.fg_color = GColorWhite;
   s_settings.bg_color = GColorBlack;
+  s_settings.tap_animation = true;
   persist_read_data(SETTINGS_KEY, &s_settings, sizeof(s_settings));
 }
 
@@ -106,6 +112,10 @@ static void fill_grid(const uint8_t *digits, bool grid[GRID_COLS][GRID_ROWS]) {
   }
 }
 
+static void animation_started(Animation *anim, void *ctx) {
+  s_animating = true;
+}
+
 static void animation_stopped(Animation *anim, bool stopped, void *ctx) {
   // Ensure the final frame shows new digits fully, even if the last frame()
   // callback didn't reach progress = ANIMATION_NORMALIZED_MAX exactly.
@@ -113,8 +123,10 @@ static void animation_stopped(Animation *anim, bool stopped, void *ctx) {
     s_columns[c].clear_fill_y = s_screen_height;
     s_columns[c].new_fill_y = s_screen_height;
   }
-  if (s_first_animation) {
-    s_first_animation = false;
+  s_first_animation = false;
+  s_animating = false;
+  if (s_animation_queued) {
+    start_animation();
   }
   if (s_layer) {
     layer_mark_dirty(s_layer);
@@ -122,6 +134,12 @@ static void animation_stopped(Animation *anim, bool stopped, void *ctx) {
 }
 
 static void start_animation(void) {
+  if (s_animating) {
+    s_animation_queued = true;
+    return;
+  }
+  s_animation_queued = false;
+  
   memcpy(s_old_grid, s_new_grid, sizeof(s_old_grid));
 
   compute_digits(&s_current_time, s_digits);
@@ -138,6 +156,7 @@ static void start_animation(void) {
   animation_set_duration(anim, ANIM_DURATION_MS);
   animation_set_curve(anim, AnimationCurveEaseInOut);
   animation_set_handlers(anim, (AnimationHandlers){
+    .started = animation_started,
     .stopped = animation_stopped,
   }, NULL);
   animation_set_implementation(anim, &s_animation_impl);
@@ -262,6 +281,12 @@ static void tick_handler(struct tm *t, TimeUnits tu) {
   start_animation();
 }
 
+static void tap_handler(AccelAxisType axis, int32_t direction) {
+  if (s_settings.tap_animation) {
+    start_animation();
+  }
+}
+
 static void window_load(Window *window) {
   Layer *root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
@@ -307,11 +332,13 @@ static void window_load(Window *window) {
     s_current_time.tm_mon = 3;
   #endif
 
+  accel_tap_service_subscribe(tap_handler);
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 }
 
 static void window_unload(Window *window) {
   tick_timer_service_unsubscribe();
+  accel_tap_service_unsubscribe();
   layer_destroy(s_layer);
   s_layer = NULL;
   free(s_columns);
@@ -330,7 +357,11 @@ static void inbox_received(DictionaryIterator *iter, void *ctx) {
   if (fg || bg) {
     save_settings();
     window_set_background_color(s_window, s_settings.bg_color);
-    start_animation();
+  }
+
+  Tuple *tap_anim = dict_find(iter, MESSAGE_KEY_TAP_ANIMATION);
+  if (tap_anim) {
+    s_settings.tap_animation = tap_anim->value->uint8;
   }
 }
 
