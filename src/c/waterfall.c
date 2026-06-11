@@ -47,6 +47,9 @@ static Settings s_settings;
 
 static Window *s_window;
 static Layer *s_layer;
+static Layer *s_temp_layer;
+static GFont s_temp_font;
+static char s_temp_buf[8] = "";
 
 static uint16_t s_screen_width;
 static uint16_t s_screen_height;
@@ -200,6 +203,15 @@ static void frame(Animation *anim, AnimationProgress progress) {
   }
 }
 
+static void temp_update_proc(Layer *layer, GContext *ctx) {
+  if (s_temp_buf[0] == '\0' || !s_temp_font) return;
+  GRect bounds = layer_get_bounds(layer);
+  graphics_context_set_text_color(ctx, s_settings.fg_color);
+  GRect text_rect = GRect(0, bounds.size.h / 2 - 24, bounds.size.w, 48);
+  graphics_draw_text(ctx, s_temp_buf, s_temp_font, text_rect,
+                     GTextOverflowModeFill, GTextAlignmentCenter, NULL);
+}
+
 static void update_proc(Layer *layer, GContext *ctx) {
   GBitmap *fb = graphics_capture_frame_buffer(ctx);
   if (!fb) return;
@@ -212,29 +224,28 @@ static void update_proc(Layer *layer, GContext *ctx) {
   for (uint16_t y = 0; y < s_screen_height; y++) {
     GBitmapDataRowInfo row = gbitmap_get_data_row_info(fb, y);
     uint8_t *p = row.data;
-
-    // The middle row always has bg color
-    if (y == y_mid) {
-      memset(p + row.min_x, bg, row.max_x - row.min_x + 1);
-      continue;
-    }
-
     uint8_t gr = s_gr_for_y[y];
+    bool is_mid = (y == y_mid);
 
     for (uint16_t col = 0; col < num_cols; col++) {
       uint16_t x_base = col << 1;
       uint16_t nfy = s_columns[col].new_fill_y;
       uint16_t cfy = s_columns[col].clear_fill_y;
+
+      // Gap zone between the two waterfalls: leave the pixel alone so the
+      // temperature layer drawn underneath shows through.
+      if (y >= nfy && y < cfy) continue;
+
       uint8_t gc_l = s_gc_for_x[x_base];
       uint8_t gc_r = s_gc_for_x[x_base + 1];
 
       if (gc_l == gc_r) {
         // Fast path: both pixels share gc
         bool on;
-        if (y < nfy) {
-          on = s_new_grid[gc_l][gr];
-        } else if (y < cfy) {
+        if (is_mid) {
           on = false;
+        } else if (y < nfy) {
+          on = s_new_grid[gc_l][gr];
         } else {
           on = s_old_grid[gc_l][gr];
         }
@@ -251,12 +262,12 @@ static void update_proc(Layer *layer, GContext *ctx) {
         // Slow path: grid boundary falls between the two pixels of this
         // column (cols 8/33/58/83 on emery;
         bool on_l, on_r;
-        if (y < nfy) {
-          on_l = s_new_grid[gc_l][gr];
-          on_r = s_new_grid[gc_r][gr];
-        } else if (y < cfy) {
+        if (is_mid) {
           on_l = false;
           on_r = false;
+        } else if (y < nfy) {
+          on_l = s_new_grid[gc_l][gr];
+          on_r = s_new_grid[gc_r][gr];
         } else {
           on_l = s_old_grid[gc_l][gr];
           on_r = s_old_grid[gc_r][gr];
@@ -312,6 +323,11 @@ static void window_load(Window *window) {
 
   window_set_background_color(window, s_settings.bg_color);
 
+  s_temp_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_THREE_FIVE_40));
+  s_temp_layer = layer_create(bounds);
+  layer_set_update_proc(s_temp_layer, temp_update_proc);
+  layer_add_child(root, s_temp_layer);
+
   s_layer = layer_create(bounds);
   layer_set_update_proc(s_layer, update_proc);
   layer_add_child(root, s_layer);
@@ -341,6 +357,10 @@ static void window_unload(Window *window) {
   accel_tap_service_unsubscribe();
   layer_destroy(s_layer);
   s_layer = NULL;
+  layer_destroy(s_temp_layer);
+  s_temp_layer = NULL;
+  fonts_unload_custom_font(s_temp_font);
+  s_temp_font = NULL;
   free(s_columns);
   s_columns = NULL;
 }
@@ -362,6 +382,16 @@ static void inbox_received(DictionaryIterator *iter, void *ctx) {
   Tuple *tap_anim = dict_find(iter, MESSAGE_KEY_TAP_ANIMATION);
   if (tap_anim) {
     s_settings.tap_animation = tap_anim->value->uint8;
+  }
+
+  Tuple *temp = dict_find(iter, MESSAGE_KEY_TEMPERATURE);
+  if (temp) {
+    strncpy(s_temp_buf, temp->value->cstring, sizeof(s_temp_buf) - 1);
+    s_temp_buf[sizeof(s_temp_buf) - 1] = '\0';
+    #ifdef FAKE_TIME
+      strcpy(s_temp_buf, "-23 C");
+    #endif
+    if (s_temp_layer) layer_mark_dirty(s_temp_layer);
   }
 }
 

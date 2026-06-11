@@ -1,7 +1,7 @@
 {
   "name": "waterfall",
   "author": "kjubybot",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "keywords": [
     "pebble-app"
   ],
@@ -27,15 +27,25 @@
     "messageKeys": [
       "FOREGROUND_COLOR",
       "BACKGROUND_COLOR",
-      "TAP_ANIMATION"
+      "TAP_ANIMATION",
+      "TEMPERATURE",
+      "TEMPERATURE_UNIT"
     ],
     "resources": {
-      "media": [{
-        "file": "images/icon.png",
-        "menuIcon": true,
-        "name": "MENU_ICON",
-        "type": "bitmap"
-      }]
+      "media": [
+        {
+          "file": "images/icon.png",
+          "menuIcon": true,
+          "name": "MENU_ICON",
+          "type": "bitmap"
+        },
+        {
+          "file": "fonts/ThreeFive.ttf",
+          "name": "FONT_THREE_FIVE_40",
+          "type": "font",
+          "characterRegex": "[ 0-9CF\\-]"
+        }
+      ]
     }
   }
 }

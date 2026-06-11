@@ -25,6 +25,16 @@
         "messageKey": "TAP_ANIMATION",
         "defaultValue": true,
         "label": "Tap Animation"
+      },
+      {
+        "type": "select",
+        "messageKey": "TEMPERATURE_UNIT",
+        "defaultValue": "celsius",
+        "label": "Temperature Unit",
+        "options": [
+          { "label": "Celsius", "value": "celsius" },
+          { "label": "Fahrenheit", "value": "fahrenheit" }
+        ]
       }
     ]
   },
